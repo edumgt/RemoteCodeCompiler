@@ -1,0 +1,31 @@
+# --- Build stage ---
+FROM maven:3.9-eclipse-temurin-17 AS build
+WORKDIR /app
+
+# Cache deps first
+COPY pom.xml .
+RUN mvn -q -DskipTests dependency:go-offline
+
+# Build
+COPY src ./src
+RUN mvn -q -DskipTests clean package
+
+# --- Run stage ---
+FROM eclipse-temurin:17-jre
+WORKDIR /app
+
+# If you keep springfox 2.9.2 on Spring Boot 2.7.x, this JVM arg prevents the common pathmatch issue.
+# You can remove it if you set: spring.mvc.pathmatch.matching-strategy=ant_path_matcher in application.properties/yml.
+ENV JAVA_OPTS="-Dspring.mvc.pathmatch.matching-strategy=ant_path_matcher"
+
+COPY --from=build /app/target/*.jar /app/app.jar
+
+# 실행 관련 파일 복사
+COPY executions /compiler/executions
+COPY entrypoint.sh /compiler/entrypoint.sh
+
+# 줄바꿈 변환 및 실행 권한 부여
+RUN dos2unix /compiler/entrypoint.sh && chmod +x /compiler/entrypoint.sh
+
+EXPOSE 8082
+ENTRYPOINT ["sh","-c","java $JAVA_OPTS -jar /app/app.jar"]
