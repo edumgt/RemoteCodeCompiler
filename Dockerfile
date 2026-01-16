@@ -11,8 +11,8 @@ WORKDIR /compiler
 
 USER root
 
-# docker.io 설치 (최신 Debian bookworm 기반)
-RUN apt-get update && apt-get install -y --no-install-recommends docker.io \
+# docker.io 및 dos2unix 설치 (줄바꿈 변환용)
+RUN apt-get update && apt-get install -y --no-install-recommends docker.io dos2unix \
     && rm -rf /var/lib/apt/lists/*
 
 # 빌드된 JAR 복사
@@ -22,8 +22,8 @@ COPY --from=build /compiler/target/*.jar /compiler/compiler.jar
 COPY executions /compiler/executions
 COPY entrypoint.sh /compiler/entrypoint.sh
 
-# 실행 권한 부여
-RUN chmod +x /compiler/entrypoint.sh
+# 줄바꿈 변환 및 실행 권한 부여
+RUN dos2unix /compiler/entrypoint.sh && chmod +x /compiler/entrypoint.sh
 
 EXPOSE 8082
 
