@@ -1,28 +1,30 @@
 # Build stage
-
-FROM maven:3.6.0 AS BUILD_STAGE
+FROM maven:3.6.0 AS build
 WORKDIR /compiler
 COPY . .
-RUN ["mvn", "clean", "install", "-Dmaven.test.skip=true"]
-
+RUN mvn clean install -Dmaven.test.skip=true
 
 # Run stage
+FROM eclipse-temurin:11-jre
 
-FROM openjdk:11.0.6-jre-slim
 WORKDIR /compiler
 
 USER root
 
-COPY --from=BUILD_STAGE /compiler/target/*.jar ../compiler.jar
+# docker.io 설치 (최신 Debian bookworm 기반)
+RUN apt-get update && apt-get install -y --no-install-recommends docker.io \
+    && rm -rf /var/lib/apt/lists/*
 
-RUN apt update && apt install -y docker.io
-    
-ADD executions ../executions
+# 빌드된 JAR 복사
+COPY --from=build /compiler/target/*.jar /compiler/compiler.jar
 
-ADD entrypoint.sh ../entrypoint.sh
+# 실행 관련 파일 복사
+COPY executions /compiler/executions
+COPY entrypoint.sh /compiler/entrypoint.sh
 
-RUN chmod a+x ../entrypoint.sh
+# 실행 권한 부여
+RUN chmod +x /compiler/entrypoint.sh
 
 EXPOSE 8082
 
-ENTRYPOINT ["../entrypoint.sh"]
+ENTRYPOINT ["/compiler/entrypoint.sh"]
